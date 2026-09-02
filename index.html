@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Розклад ІР-31</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="backdrop" aria-hidden="true"></div>
+
+<div class="shell">
+  <!-- HEADER -->
+  <div class="header">
+    <i class="fas fa-cog settings-trigger" id="btn-settings" aria-label="Налаштування"></i>
+    <h2>Розклад ІР-31</h2>
+    <p class="status-line"><span class="live-dot"></span><span id="top-date">Оновлення…</span></p>
+    <span id="stale-badge" class="stale-badge hidden">дані можуть бути застарілими</span>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-card">
+    <select id="sub-filter" class="hidden">
+      <option value="all">Всі підгрупи</option>
+      <option value="1">1 підгрупа</option>
+      <option value="2">2 підгрупа</option>
+    </select>
+    <input type="date" id="date-pick">
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="btn-today">Сьогодні</div>
+    <div class="tab" id="btn-week">Тиждень</div>
+  </div>
+
+  <div id="main-list" class="container"></div>
+</div><!-- /.shell -->
+
+<!-- SETTINGS SCREEN (full-page overlay, у стилі довідкового екрану) -->
+<div id="settings-screen" class="settings-screen hidden">
+  <div class="settings-header">
+    <i class="fas fa-arrow-left" id="btn-settings-back"></i>
+    <span>Налаштування</span>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row" id="row-refresh">
+      <i class="fas fa-rotate-right"></i>
+      <div class="row-text">
+        <span>Оновити зараз</span>
+        <small id="last-update-text">Ще не оновлювалось</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row settings-row-input">
+      <i class="fas fa-link"></i>
+      <div class="row-text" style="width:100%">
+        <span>Джерело даних (CSV-посилання)</span>
+        <input type="text" id="url-input" placeholder="Вставте посилання на CSV-версію листа">
+        <button id="btn-save-url">Зберегти та оновити</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row">
+      <i class="fas fa-circle-info"></i>
+      <div class="row-text">
+        <span>Про застосунок</span>
+        <small>Розклад ІР-31 · v1.0</small>
+      </div>
+    </div>
+  </div>
+
+  <p class="settings-footnote">
+    Розклад ІР-31 · дані з опублікованої Google Таблиці деканату.
+    Не є офіційним джерелом і може відставати від змін у деканаті.
+  </p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

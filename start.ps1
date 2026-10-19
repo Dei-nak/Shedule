@@ -3,11 +3,11 @@ $ErrorActionPreference = 'Stop'
 try {
     $node = Get-Command node -ErrorAction Stop
     $address = $null
-    foreach ($schedulePort in 3000..3010) {
+    foreach ($schedulePort in 4173..4173) {
         $candidate = "http://127.0.0.1:$schedulePort"
         try {
             $health = Invoke-RestMethod "$candidate/api/health" -TimeoutSec 1
-            if ($health.service -eq 'ir31-schedule' -and $health.version -eq 2) {
+            if ($health.service -eq 'ir31-schedule' -and $health.version -eq 5) {
                 $address = $candidate
                 break
             }
@@ -18,12 +18,12 @@ try {
         finally { $probe.Dispose() }
         if ($busy) { continue }
         $env:PORT = [string]$schedulePort
-        $process = Start-Process -FilePath $node.Source -ArgumentList 'server.cjs' -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru
+        $process = Start-Process -FilePath $node.Source -ArgumentList @('--watch', 'server.cjs') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru
         foreach ($attempt in 1..40) {
             Start-Sleep -Milliseconds 250
             try {
                 $health = Invoke-RestMethod "$candidate/api/health" -TimeoutSec 1
-                if ($health.service -eq 'ir31-schedule' -and $health.version -eq 2) { $address = $candidate; break }
+                if ($health.service -eq 'ir31-schedule' -and $health.version -eq 5) { $address = $candidate; break }
             } catch { }
             if ($process.HasExited) { break }
         }

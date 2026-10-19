@@ -1,18 +1,20 @@
 // ==== НАЛАШТУВАННЯ ЗА ЗАМОВЧУВАННЯМ ====
-// Use the ordinary online schedule URL. The server discovers the current sheet.
+// GitHub Actions discovers the current sheet and publishes the static feed.
 const DEFAULT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQa-DLjav3nUZLx4XUhxeNqmmHilX_FGV2_qTEetS4XryhlcNyrIgha_kjESlClKoVcqA9B88c8ZEek/pubhtml#gid=377907326";
 const TARGET_GROUP = "ІР-31";
 const FETCH_TIMEOUT_MS = 30000;
-const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 хв
+const AUTO_REFRESH_MS = 60 * 1000; // Check the published feed every minute.
 
 const CACHE_KEY_RAW = "schedule_cache_raw_v3_" + TARGET_GROUP;
 const CACHE_KEY_TIME = "schedule_cache_time_v3_" + TARGET_GROUP;
-const CACHE_KEY_URL = "scheduleURL";
 
-let currentURL = localStorage.getItem(CACHE_KEY_URL) || DEFAULT_URL;
-// Migrate the original, incorrect default without replacing custom sources.
-if (currentURL.includes("gid=1325481207")) currentURL = DEFAULT_URL;
+let currentURL = DEFAULT_URL;
 let raw = [];
+let loading = false;
+let lastVerified = 0;
+let feedRevision = '';
+let connectionMode = 'published';
+let lastSyncError = '';
 let view = "today";
 let myC = -1;      // колонка групи (перша підгрупа або єдина колонка)
 let myC2 = -1;      // колонка другої підгрупи (якщо є поділ на підгрупи)
@@ -26,7 +28,7 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&
 const LESSON_MARKER = /\(\s*(л(?:аб)?|лек|пр|пз|п|с(?:ем)?|конс)\s*\.?\s*\)/i;
 
 el("date-pick").value = localDate(new Date());
-el("url-input").value = currentURL;
+el("source-link").href = currentURL;
 
 // ---- Навігація по вкладках ----
 el("btn-today").onclick = () => setView("today");
@@ -43,14 +45,6 @@ el("sub-filter").onchange = render;
 el("btn-settings").onclick = () => el("settings-screen").classList.remove("hidden");
 el("btn-settings-back").onclick = () => el("settings-screen").classList.add("hidden");
 el("row-refresh").onclick = () => load(true);
-el("btn-save-url").onclick = () => {
-  const val = el("url-input").value.trim();
-  if (!val) return;
-  localStorage.setItem(CACHE_KEY_URL, val);
-  currentURL = val;
-  el("settings-screen").classList.add("hidden");
-  load(true);
-};
 
 // ---- Завантаження з тайм-аутом ----
 async function fetchWithTimeout(url, ms) {
@@ -60,7 +54,7 @@ async function fetchWithTimeout(url, ms) {
     // Додаємо "cache-buster", бо Google CDN інколи довго віддає стару CSV-версію
     const bust = (url.includes("?") ? "&" : "?") + "_=" + Date.now();
     const res = await fetch(url + bust, { signal: controller.signal, cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    if (!res.ok) { const error = new Error("HTTP " + res.status); error.status = res.status; throw error; }
     return await res.text();
   } finally {
     clearTimeout(id);
@@ -88,88 +82,95 @@ function findGroupColumn(rows, groupName) {
   return null;
 }
 
-async function load(manual) {
-  const listEl = el("main-list");
-  if (manual || !raw.length) {
-    el("top-date").innerText = "Оновлення…";
-  }
-  try {
-    usingCache = false;
-    let text;
-    try {
-      text = await fetchWithTimeout(location.protocol.startsWith("http")
-        ? "/api/schedule?url=" + encodeURIComponent(currentURL) + "&group=" + encodeURIComponent(TARGET_GROUP) : sourceURL(currentURL), FETCH_TIMEOUT_MS);
-    } catch (error) {
-      const requested = new URL(sourceURL(currentURL));
-      const bundled = new URL(sourceURL(DEFAULT_URL));
-      if (!window.SCHEDULE_SNAPSHOT || requested.pathname !== bundled.pathname || requested.searchParams.get("gid") !== bundled.searchParams.get("gid")) throw error;
-      if (localStorage.getItem(CACHE_KEY_RAW) && Number(localStorage.getItem(CACHE_KEY_TIME)) > window.SCHEDULE_SNAPSHOT.savedAt) throw error;
-      text = window.SCHEDULE_SNAPSHOT.html;
-      usingCache = true;
-    }
-    const parsed = /<table[\s>]/i.test(text) ? parsePublishedSheet(text) : Papa.parse(text).data;
-
-    const found = findGroupColumn(parsed, TARGET_GROUP);
-    if (!found) {
-      throw new Error("NOT_FOUND");
-    }
-
-    raw = parsed;
-    myC = found.col;
-    hasSubgroups = found.hasSubgroups;
-    myC2 = hasSubgroups ? myC + 2 : -1;
-    el("sub-filter").classList.toggle("hidden", !hasSubgroups);
-
-    el("stale-badge").classList.toggle("hidden", !usingCache);
-    localStorage.setItem(CACHE_KEY_RAW, JSON.stringify(parsed));
-    localStorage.setItem(CACHE_KEY_TIME, usingCache ? String(window.SCHEDULE_SNAPSHOT.savedAt) : Date.now().toString());
-    updateSourceStatus();
-    updateLastUpdateText();
-    render();
-  } catch (e) {
-    console.error("Помилка завантаження розкладу:", e);
-    // Спроба показати останню збережену копію замість нескінченного "Оновлення…"
-    const cachedRaw = localStorage.getItem(CACHE_KEY_RAW);
-    if (cachedRaw) {
-      try {
-        const parsed = JSON.parse(cachedRaw);
-        const found = findGroupColumn(parsed, TARGET_GROUP);
-        if (found) {
-          raw = parsed;
-          myC = found.col;
-          hasSubgroups = found.hasSubgroups;
-          myC2 = hasSubgroups ? myC + 2 : -1;
-          el("sub-filter").classList.toggle("hidden", !hasSubgroups);
-          usingCache = true;
-          el("stale-badge").classList.remove("hidden");
-          updateSourceStatus();
-          updateLastUpdateText();
-          render();
-          return;
-        }
-      } catch (e2) { /* ігноруємо биту кеш-копію */ }
-    }
-    showLoadError(e.message === "NOT_FOUND"
-      ? `Групу «${TARGET_GROUP}» не знайдено у цій таблиці. Перевірте посилання в ⚙ Налаштуваннях.`
-      : "Не вдалося завантажити розклад. Перевірте інтернет-з'єднання або посилання.");
-  }
+function applySchedule(rows, savedAt, cached) {
+  const found = findGroupColumn(rows, TARGET_GROUP);
+  if (!found) throw new Error("NOT_FOUND");
+  raw = rows; myC = found.col; hasSubgroups = found.hasSubgroups;
+  myC2 = hasSubgroups ? myC + 2 : -1;
+  usingCache = cached || Date.now() - savedAt > 20 * 60 * 1000;
+  lastVerified = savedAt;
+  el("sub-filter").classList.toggle("hidden", !hasSubgroups);
+  updateSourceStatus(); render();
 }
 
-function updateLastUpdateText() {
-  const t = localStorage.getItem(CACHE_KEY_TIME);
-  if (!t) return;
-  const d = new Date(parseInt(t, 10));
-  el("last-update-text").innerText = "Востаннє оновлено: " + d.toLocaleString("uk-UA");
+function isLocalPreview() {
+  return location.protocol === 'file:' || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+}
+
+async function locateFeed() {
+  const bases = [new URL('.', document.baseURI)];
+  if (isLocalPreview() && bases[0].origin !== 'http://127.0.0.1:4173') bases.push(new URL('http://127.0.0.1:4173/'));
+  let published = null;
+  for (const base of bases) {
+    try {
+      const meta = JSON.parse(await fetchWithTimeout(new URL('schedule-meta.json', base).href, FETCH_TIMEOUT_MS));
+      if (meta.group !== TARGET_GROUP || !Number.isFinite(meta.savedAt) || typeof meta.revision !== 'string') throw new Error('INVALID_META');
+      if (isLocalPreview() && meta.mode !== 'live' && bases.length > 1 && base === bases[0]) {
+        published = { base, meta };
+        continue;
+      }
+      return { base, meta };
+    } catch (_) { /* A VS Code Live Server can use the local live-preview task. */ }
+  }
+  if (published) return published;
+  throw new Error(isLocalPreview() ? 'LOCAL_PREVIEW_NOT_RUNNING' : 'PUBLISHED_FEED_UNAVAILABLE');
+}
+
+async function load(manual) {
+  if (loading) return;
+  loading = true;
+  el("sync-status").classList.add("is-checking");
+  try {
+    const { base, meta } = await locateFeed();
+    connectionMode = meta.mode === 'live' ? 'live' : 'published';
+    lastSyncError = '';
+    if (raw.length && meta.revision === feedRevision) {
+      applySchedule(raw, meta.savedAt, false);
+      localStorage.setItem(CACHE_KEY_TIME, String(meta.savedAt));
+      return;
+    }
+    const feed = JSON.parse(await fetchWithTimeout(new URL("schedule-data.json", base).href, FETCH_TIMEOUT_MS));
+    if (feed.group !== TARGET_GROUP || !Number.isFinite(feed.savedAt) || !feed.html) throw new Error("INVALID_FEED");
+    if (feed.revision !== meta.revision) throw new Error("DEPLOY_IN_PROGRESS");
+    const parsed = parsePublishedSheet(feed.html);
+    applySchedule(parsed, feed.savedAt, false);
+    feedRevision = feed.revision;
+    localStorage.setItem(CACHE_KEY_RAW, JSON.stringify(parsed));
+    localStorage.setItem(CACHE_KEY_TIME, String(feed.savedAt));
+    if (feed.source) el("source-link").href = sourceURL(feed.source);
+  } catch (error) {
+    lastSyncError = error.message;
+    if (raw.length) { usingCache = true; updateSourceStatus(); }
+    else {
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY_RAW) || "null");
+        const savedAt = Number(localStorage.getItem(CACHE_KEY_TIME));
+        const snapshot = window.SCHEDULE_SNAPSHOT;
+        if (cached && (!snapshot || savedAt > snapshot.savedAt)) applySchedule(cached, savedAt, true);
+        else if (snapshot) applySchedule(parsePublishedSheet(snapshot.html), snapshot.savedAt, true);
+        else throw error;
+      } catch (_) { showLoadError("Не вдалося отримати розклад. Спробуйте оновити сторінку пізніше."); renderPersonalOnly(); }
+    }
+  } finally {
+    loading = false;
+    el("sync-status").classList.remove("is-checking");
+  }
 }
 
 function updateSourceStatus() {
-  const saved = new Date(Number(localStorage.getItem(CACHE_KEY_TIME)));
-  el("stale-badge").textContent = `Збережена копія від ${saved.toLocaleString("uk-UA")}`;
-  const notice = el("source-notice");
-  notice.classList.toggle("hidden", !usingCache);
-  notice.textContent = usingCache
-    ? (location.protocol === "file:" ? "Для автоматичного оновлення відкрийте файл «Запустити розклад.cmd» у папці розкладу. Зараз показано збережену копію."
-      : "Не вдалося оновити онлайн-розклад. Показано останню збережену копію; наступна спроба — автоматично.") : "";
+  const date = new Date(lastVerified);
+  const caption = lastVerified ? date.toLocaleString("uk-UA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "ще не оновлено";
+  el("stale-badge").classList.toggle("hidden", !usingCache);
+  el("stale-badge").textContent = "Збережена копія · " + caption;
+  el("sync-status").textContent = (usingCache ? "Копія від " : connectionMode === 'live' ? "Онлайн · перевірено " : "Таблицю перевірено · ") + caption;
+  el("sync-status").title = "Нові опубліковані дані перевіряються щохвилини";
+  el("last-update-text").textContent = "Таблицю перевірено: " + caption;
+  el("source-notice").classList.toggle("hidden", !usingCache);
+  el("source-notice").textContent = !usingCache ? '' : lastSyncError === 'LOCAL_PREVIEW_NOT_RUNNING'
+    ? 'Live Server не отримує дані Google. У VS Code виберіть «Термінал → Виконати завдання → Розклад: живий перегляд». Після запуску сторінка підключиться автоматично.'
+    : lastSyncError === 'PUBLISHED_FEED_UNAVAILABLE'
+      ? 'Файл оновлень ще не опублікований. Потрібна успішна збірка «Update schedule and deploy Pages» у GitHub Actions.'
+      : 'Показано останню перевірену версію. Підключення до джерела перевіряється автоматично.';
 }
 
 function showLoadError(msg) {
@@ -313,120 +314,139 @@ function lessonType(title) {
   return { key: "other", label: "Заняття", icon: "fa-graduation-cap" };
 }
 
-// ---- Рендер ----
-function render() {
-  if (!raw.length || myC < 0) return;
-  const selD = new Date(el("date-pick").value + "T12:00:00");
-  if (Number.isNaN(selD.getTime())) return;
-  const list = el("main-list");
-  const filter = hasSubgroups ? el("sub-filter").value : "all";
-  list.innerHTML = "";
-  el("top-date").innerText = selD.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" });
-
-  const days = view === "today" ? [selD] : Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(selD); d.setDate(d.getDate() + i); return d;
-  });
-
-  let foundAny = false;
-  // Each course has its own merged time/day columns; their row heights differ.
-  const columns = Array.from({ length: myC }, (_, i) => myC - i - 1);
-  const timeColumn = columns.find(c => raw.some(r => /^\d{1,2}:\d{2}\s*[-–—]/.test(r[c] || ""))) ?? 1;
-  const dayColumn = columns.find(c => raw.some(r => D_NAMES.includes((r[c] || "").toLowerCase().trim()))) ?? 0;
-
-  days.forEach(targetDate => {
-    const dayName = D_NAMES[targetDate.getDay() === 0 ? 6 : targetDate.getDay() - 1];
-    let dayHtml = "", curDay = "";
-
+// ---- Розклад дня: офіційні та особисті заняття ----
+function minutes(time) {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+function lessonState(time, date) {
+  const [start, end] = time.split(/[-–—]/).map(t => minutes(t.trim()));
+  const now = new Date();
+  const day = localDate(date), today = localDate(now);
+  if (day < today) return 'done';
+  if (day > today) return 'upcoming';
+  const current = now.getHours() * 60 + now.getMinutes();
+  return current >= end ? 'done' : current >= start ? 'now' : 'upcoming';
+}
+function collectDaySlots(targetDate) {
+  const slots = new Map();
+  const put = (time, lessons) => {
+    if (!lessons.length) return;
+    const normalized = time.replace(/[–—]/g, '-').replace(/\s/g, '');
+    if (!slots.has(normalized)) slots.set(normalized, { time: normalized, lessons: [] });
+    slots.get(normalized).lessons.push(...lessons);
+  };
+  if (raw.length && myC >= 0) {
+    const columns = Array.from({ length: myC }, (_, i) => myC - i - 1);
+    const timeColumn = columns.find(c => raw.some(r => /^\d{1,2}:\d{2}\s*[-–—]/.test(r[c] || ''))) ?? 1;
+    const dayColumn = columns.find(c => raw.some(r => D_NAMES.includes((r[c] || '').toLowerCase().trim()))) ?? 0;
+    const dayName = D_NAMES[(targetDate.getDay() + 6) % 7].replace(/['’]/g, '');
+    const filter = hasSubgroups ? el('sub-filter').value : 'all';
+    let curDay = '';
     raw.forEach((row, i) => {
-      const f = row[dayColumn]?.toLowerCase().replace(/['']/g, "").trim() || "";
-      if (D_NAMES.some(d => f.includes(d.replace(/['']/g, "")))) curDay = f;
-      const sameDay = curDay.includes(dayName.replace(/['']/g, ""));
+      const f = (row[dayColumn] || '').toLowerCase().replace(/['’]/g, '').trim();
+      if (D_NAMES.some(d => f === d.replace(/['’]/g, ''))) curDay = f;
+      const sameDay = curDay === dayName;
       if (!sameDay && targetDate.getDay() !== 6) return;
-
       const time = row[timeColumn];
-      if (!time || !/^\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}$/.test(time)) return;
+      if (!/^\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}$/.test(time || '')) return;
       let end = i + 1;
-      while (end < raw.length && !/^\d{1,2}:\d{2}/.test(raw[end]?.[timeColumn] || "") && !D_NAMES.includes(raw[end]?.[dayColumn])) end++;
-
-      let l1 = null, l2 = null;
-      const lessons1 = [], lessons2 = [];
+      while (end < raw.length && !/^\d{1,2}:\d{2}/.test(raw[end]?.[timeColumn] || '') && !D_NAMES.includes(raw[end]?.[dayColumn])) end++;
+      const first = [], second = [];
       for (let s = 0; i + s < end; s++) {
-        const first = extractLesson(raw, i, s, myC, targetDate, sameDay, end);
-        const second = hasSubgroups && extractLesson(raw, i, s, myC2, targetDate, sameDay, end);
-        if (first) lessons1.push(first);
-        if (second) lessons2.push(second);
+        const l1 = extractLesson(raw, i, s, myC, targetDate, sameDay, end);
+        const l2 = hasSubgroups && extractLesson(raw, i, s, myC2, targetDate, sameDay, end);
+        if (l1) first.push(l1);
+        if (l2) second.push(l2);
       }
-      l1 = lessons1.length ? lessons1 : null;
-      l2 = lessons2.length ? lessons2 : null;
-
-      if (!l1 && !l2) return;
-      if (hasSubgroups) {
-        if (filter === "2") l1 = null;
-        if (filter === "1") l2 = null;
+      const shared = !hasSubgroups || JSON.stringify(first) === JSON.stringify(second);
+      const lessons = [];
+      if (shared) lessons.push(...first.map(l => ({ ...l, group: '' })));
+      else {
+        if (filter !== '2') lessons.push(...first.map(l => ({ ...l, group: 'Підгрупа 1' })));
+        if (filter !== '1') lessons.push(...second.map(l => ({ ...l, group: 'Підгрупа 2' })));
       }
-
-      const active = isNow(time, targetDate);
-      let content = "";
-      const isShared = hasSubgroups && l1 && !l2;
-
-      const lessonCardHtml = (lessons) => lessons.map(lesson => {
-        const t = lessonType(lesson.title);
-        const cleanTitle = lesson.title.replace(LESSON_MARKER, "").trim();
-        // Позначки аудиторії/корпусу в розкладі означають очне заняття.
-        const placeText = `${lesson.title} ${lesson.room}`.toLowerCase();
-        const isOffline = /(ауд|аудитор|корп|кабін|офлайн|університет)/.test(placeText);
-        return `
-        <div class="card type-${t.key}">
-          <div class="card-top">
-            <div>
-              <span class="type-chip"><i class="fas ${t.icon}"></i>${t.label}</span>
-              ${isOffline ? `<span class="delivery-indicator" title="Очне заняття"><i class="fas fa-building-columns"></i>Офлайн</span>` : ""}
-            </div>
-            ${lesson.link
-              ? `<a href="${escapeHtml(lesson.link)}" target="_blank" rel="noopener" class="join-btn" title="Приєднатись онлайн"><i class="fas fa-video"></i></a>`
-              : `<span class="join-btn is-unavailable" title="Посилання на пару ще не додано"><i class="fas fa-video"></i></span>`}
-          </div>
-          <span class="title">${escapeHtml(cleanTitle)}</span>
-          <div class="prof"><i class="fas fa-user-tie"></i> ${escapeHtml(lesson.prof)}</div>
-          ${lesson.room ? `<div class="room"><i class="fas fa-location-dot"></i> ${escapeHtml(lesson.room)}</div>` : ""}
-        </div>`;
-      }).join("");
-
-      if (!hasSubgroups) {
-        content = `<div class="sub-column">${l1 ? lessonCardHtml(l1) : `<div class="empty-slot">вільно</div>`}</div>`;
-      } else if (isShared) {
-        content = `<div class="sub-column"><span class="group-tag">Спільне</span>${lessonCardHtml(l1)}</div>`;
-      } else {
-        if (filter === "all" || filter === "1") {
-          content += `<div class="sub-column"><span class="group-tag">Підгрупа 1</span>${l1 ? lessonCardHtml(l1) : `<div class="empty-slot">вільно</div>`}</div>`;
-        }
-        if (filter === "all" || filter === "2") {
-          content += `<div class="sub-column"><span class="group-tag">Підгрупа 2</span>${l2 ? lessonCardHtml(l2) : `<div class="empty-slot">вільно</div>`}</div>`;
-        }
-      }
-
-      dayHtml += `<div class="lesson-row ${active ? "is-now" : ""}">
-        <div class="time-rail">
-          <div class="time-dot">${active ? '<span class="pulse"></span>' : ""}</div>
-          <div class="time-text"><span class="t-start">${time.split("-")[0]}</span><span class="t-end">${time.split("-")[1]}</span></div>
-        </div>
-        <div class="lesson-content">${active ? '<div class="now-badge">ЗАРАЗ</div>' : ""}${content}</div>
-      </div>`;
-      foundAny = true;
+      put(time, lessons);
     });
-
-    if (dayHtml) {
-      if (view === "week") list.innerHTML += `<div class="day-label">${targetDate.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric" })}</div>`;
-      list.innerHTML += `<div class="day-block">${dayHtml}</div>`;
-    } else if (view === "week") {
-      list.innerHTML += `<div class="day-label">${targetDate.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric" })}</div>`;
-      list.innerHTML += `<div class="no-lessons"><div class="coffee-animation">☕</div>Пар не знайдено</div>`;
-    }
-  });
-
-  if (!foundAny) list.innerHTML = `<div class="no-lessons"><div class="coffee-animation">☕</div>Пар не знайдено</div>`;
+  }
+  for (const lesson of readPersonalLessons().filter(l => l.date === localDate(targetDate))) {
+    put(lesson.start + '-' + lesson.end, [{ ...lesson, personal: true, room: lesson.note, group: 'Додаткова пара' }]);
+  }
+  return [...slots.values()].sort((a, b) => minutes(a.time.split('-')[0]) - minutes(b.time.split('-')[0]) || minutes(a.time.split('-')[1]) - minutes(b.time.split('-')[1]));
+}
+function typeInfo(lesson) {
+  if (!lesson.personal) return lessonType(lesson.title);
+  return {
+    lecture: { key: 'lecture', label: 'Лекція', icon: 'fa-book-open' },
+    lab: { key: 'lab', label: 'Лабораторна', icon: 'fa-flask' },
+    practice: { key: 'practice', label: 'Практична', icon: 'fa-pen-ruler' },
+    seminar: { key: 'seminar', label: 'Семінар', icon: 'fa-comments' },
+    consult: { key: 'consult', label: 'Консультація', icon: 'fa-circle-question' },
+    other: { key: 'other', label: 'Заняття', icon: 'fa-graduation-cap' },
+  }[lesson.type] || { key: 'other', label: 'Заняття', icon: 'fa-graduation-cap' };
+}
+function safeLink(value) {
+  try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch (_) { return ''; }
+}
+function lessonCardHtml(lesson) {
+  const type = typeInfo(lesson);
+  const cleanTitle = lesson.personal ? lesson.title : lesson.title.replace(LESSON_MARKER, '').trim();
+  const link = safeLink(lesson.link);
+  const isOffline = /(ауд|аудитор|корп|кабін|офлайн|університет)/i.test(`${lesson.title} ${lesson.room || ''}`);
+  return `<div class="sub-column">${lesson.group ? `<span class="group-tag">${escapeHtml(lesson.group)}</span>` : ''}
+    <article class="card type-${type.key}${lesson.personal ? ' personal-card' : ''}">
+      <div class="card-top"><div><span class="type-chip"><i class="fas ${type.icon}"></i>${type.label}</span>${isOffline ? '<span class="delivery-indicator"><i class="fas fa-building-columns"></i>Офлайн</span>' : ''}</div>
+      <div class="card-actions">${lesson.personal ? `<button class="edit-personal icon-button" data-edit="${escapeHtml(lesson.id)}" aria-label="Редагувати додаткову пару"><i class="fas fa-pen"></i></button>` : ''}
+      ${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" class="join-btn" title="Приєднатись онлайн"><i class="fas fa-video"></i></a>` : '<span class="join-btn is-unavailable" title="Посилання не додано"><i class="fas fa-video"></i></span>'}</div></div>
+      <span class="title">${escapeHtml(cleanTitle)}</span>
+      ${lesson.prof ? `<div class="prof"><i class="fas fa-user-tie"></i> ${escapeHtml(lesson.prof)}</div>` : ''}
+      ${lesson.room ? `<div class="room"><i class="fas fa-location-dot"></i> ${escapeHtml(lesson.room)}</div>` : ''}
+    </article></div>`;
+}
+function rowId(date, index) { return 'slot-' + localDate(date) + '-' + index; }
+function daySlotsHtml(slots, date) {
+  return slots.map((slot, index) => {
+    const state = lessonState(slot.time, date);
+    const [start, end] = slot.time.split('-');
+    return `<div id="${rowId(date, index)}" class="lesson-row ${state === 'now' ? 'is-now' : ''}" data-state="${state}">
+      <div class="time-rail"><div class="time-dot"></div><div class="time-text"><span class="t-start">${start}</span><span class="t-end">${end}</span></div></div>
+      <div class="lesson-content">${state === 'now' ? '<div class="now-badge">ЗАРАЗ</div>' : ''}${slot.lessons.map(lessonCardHtml).join('')}</div></div>`;
+  }).join('');
+}
+function render() {
+  const date = new Date(el('date-pick').value + 'T12:00:00');
+  if (Number.isNaN(date.getTime())) return;
+  const days = view === 'today' ? [date] : Array.from({ length: 7 }, (_, i) => { const d = new Date(date); d.setDate(d.getDate() + i); return d; });
+  el('top-date').innerText = date.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
+  el('main-list').innerHTML = days.map(day => {
+    const slots = collectDaySlots(day);
+    return (view === 'week' ? `<div class="day-label">${day.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric' })}</div>` : '')
+      + (slots.length ? `<div class="day-block">${daySlotsHtml(slots, day)}</div>` : '<div class="no-lessons"><div class="coffee-animation">☕</div>На цей день пар немає</div>');
+  }).join('');
+  renderDaySummary(view === 'today' ? collectDaySlots(date) : [], date);
+}
+function renderPersonalOnly() { render(); }
+function renderDaySummary(slots, date) {
+  const section = el('day-summary');
+  section.classList.toggle('hidden', view !== 'today');
+  if (view !== 'today') return;
+  const lessons = slots.flatMap(s => s.lessons);
+  const total = lessons.length;
+  const completed = slots.filter(s => lessonState(s.time, date) === 'done').reduce((sum, s) => sum + s.lessons.length, 0);
+  const intervals = slots.map(s => s.time.split('-').map(minutes)).sort((a, b) => a[0] - b[0]);
+  let duration = 0, lastEnd = 0;
+  for (const [start, end] of intervals) { duration += Math.max(0, end - Math.max(start, lastEnd)); lastEnd = Math.max(lastEnd, end); }
+  const types = new Map();
+  lessons.forEach(l => { const t = typeInfo(l); const item = types.get(t.key) || { ...t, count: 0 }; item.count++; types.set(t.key, item); });
+  section.innerHTML = `<div class="summary-heading"><span>Ритм дня</span><span class="summary-date">${date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })}</span></div>
+    <div class="summary-tickets">${slots.length ? slots.map((slot, i) => `<button type="button" class="summary-ticket ${lessonState(slot.time, date)}" data-slot="${rowId(date, i)}" title="${escapeHtml(slot.lessons.map(l => l.title.replace(LESSON_MARKER, '')).join(' · '))}"><span class="ticket-pin"></span><span>${slot.time.split('-')[0]}</span><i class="fas ${lessonState(slot.time, date) === 'done' ? 'fa-check' : typeInfo(slot.lessons[0]).icon}"></i></button>`).join('') : '<span class="summary-free"><i class="fas fa-mug-hot"></i> День без занять</span>'}</div>
+    <div class="summary-bottom"><div class="summary-count"><strong>${completed}<span> / ${total}</span></strong><span>пар завершено</span></div><div class="summary-duration"><strong>${Math.floor(duration / 60)}<small>год</small> ${duration % 60}<small>хв</small></strong><span>навчального часу</span></div><div class="summary-types">${[...types.values()].map(t => `<span title="${t.label}"><i class="fas ${t.icon}"></i>${t.count}</span>`).join('')}</div></div>`;
 }
 
+// UI state is independent of source refreshes.
+initPersonalLessons();
 load();
-setInterval(() => load(false), AUTO_REFRESH_MS);
-setInterval(render, 30000); // оновлення бейджа "ЗАРАЗ" без нового завантаження
+setInterval(() => { if (!document.hidden) load(false); }, AUTO_REFRESH_MS);
+setInterval(() => { if (!document.hidden) render(); }, 15000);
+window.addEventListener('online', () => load(false));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); load(false); } });

@@ -15,6 +15,7 @@
 <div class="shell">
   <!-- HEADER -->
   <div class="header">
+    <div class="hero-art" aria-hidden="true"><span></span><span></span><span></span></div>
     <i class="fas fa-cog settings-trigger" id="btn-settings" aria-label="Налаштування"></i>
     <h2>Розклад ІР-31</h2>
     <p class="status-line"><span class="live-dot"></span><span id="top-date">Оновлення…</span></p>
@@ -36,6 +37,7 @@
     <div class="tab" id="btn-week">Тиждень</div>
   </div>
 
+  <p id="source-notice" class="source-notice hidden" role="status"></p>
   <div id="main-list" class="container"></div>
 </div><!-- /.shell -->
 
@@ -60,8 +62,8 @@
     <div class="settings-row settings-row-input">
       <i class="fas fa-link"></i>
       <div class="row-text" style="width:100%">
-        <span>Джерело даних (CSV-посилання)</span>
-        <input type="text" id="url-input" placeholder="Вставте посилання на CSV-версію листа">
+        <span>Джерело даних (опублікована Google Таблиця)</span>
+        <input type="text" id="url-input" placeholder="Вставте посилання на опублікований аркуш">
         <button id="btn-save-url">Зберегти та оновити</button>
       </div>
     </div>
@@ -84,6 +86,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="schedule-snapshot.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

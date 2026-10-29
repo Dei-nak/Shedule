@@ -18,7 +18,7 @@ async function build() {
   }
   const out = path.join(__dirname, 'dist');
   fs.mkdirSync(out, { recursive: true });
-  for (const name of ['index.html', 'app.js', 'style.css', 'personal.js', 'particles.js', 'theme.js']) fs.copyFileSync(path.join(__dirname, name), path.join(out, name));
+  for (const name of ['index.html', 'app.js', 'style.css', 'personal.js', 'particles.js', 'theme.js', 'hero-light.js']) fs.copyFileSync(path.join(__dirname, name), path.join(out, name));
   fs.writeFileSync(path.join(out, 'schedule-data.json'), JSON.stringify(feed));
   fs.writeFileSync(path.join(out, 'schedule-meta.json'), JSON.stringify(feedMeta(feed)));
   fs.writeFileSync(path.join(out, 'schedule-snapshot.js'), 'window.SCHEDULE_SNAPSHOT = ' + JSON.stringify(feed) + ';');

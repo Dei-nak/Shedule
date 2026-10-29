@@ -165,12 +165,12 @@ function updateSourceStatus() {
   el("sync-status").textContent = (usingCache ? "Копія від " : connectionMode === 'live' ? "Онлайн · перевірено " : "Таблицю перевірено · ") + caption;
   el("sync-status").title = "Нові опубліковані дані перевіряються щохвилини";
   el("last-update-text").textContent = "Таблицю перевірено: " + caption;
-  el("source-notice").classList.toggle("hidden", !usingCache);
-  el("source-notice").textContent = !usingCache ? '' : lastSyncError === 'LOCAL_PREVIEW_NOT_RUNNING'
+  const connectionDetails = !usingCache ? '' : lastSyncError === 'LOCAL_PREVIEW_NOT_RUNNING'
     ? 'Live Server не отримує дані Google. У VS Code виберіть «Термінал → Виконати завдання → Розклад: живий перегляд». Після запуску сторінка підключиться автоматично.'
     : lastSyncError === 'PUBLISHED_FEED_UNAVAILABLE'
       ? 'Файл оновлень ще не опублікований. Потрібна успішна збірка «Update schedule and deploy Pages» у GitHub Actions.'
       : 'Показано останню перевірену версію. Підключення до джерела перевіряється автоматично.';
+  if (connectionDetails) el('sync-status').title = connectionDetails;
 }
 
 function showLoadError(msg) {

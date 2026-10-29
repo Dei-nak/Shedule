@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createFeed, feedMeta } = require('./build-pages.cjs');
 const config = require('./schedule-config.json');
-const files = new Set(['index.html', 'app.js', 'style.css', 'personal.js', 'particles.js', 'theme.js', 'schedule-snapshot.js']);
+const files = new Set(['index.html', 'app.js', 'style.css', 'personal.js', 'particles.js', 'theme.js', 'hero-light.js', 'schedule-snapshot.js']);
 let latest, pending;
 async function liveFeed() {
   if (latest && Date.now() - latest.savedAt < 30000) return latest;

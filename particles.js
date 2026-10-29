@@ -69,3 +69,38 @@
   document.addEventListener('visibilitychange', restart);
   reduced.addEventListener('change', restart);
 })();
+
+// Scroll choreography is independent of WebGL and never moves the layout itself.
+(() => {
+  const header = document.querySelector('.header');
+  if (!header) return;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let frame = 0, current = 0, target = 0;
+  function paint() {
+    frame = 0;
+    current += (target - current) * (document.hidden ? 1 : .13);
+    const progress = reduced.matches ? 0 : current;
+    const exit = Math.min(1, progress / .82);
+    const fade = exit * exit * (3 - 2 * exit);
+    header.style.setProperty('--hero-visibility', (1 - fade).toFixed(4));
+    header.style.setProperty('--hero-blur', (fade * 1.8).toFixed(2) + 'px');
+    header.style.setProperty('--hero-light-y', (progress * 52).toFixed(2) + 'px');
+    header.style.setProperty('--hero-light-scale', (1 + progress * .07).toFixed(4));
+    header.style.setProperty('--hero-light-opacity', (1 - progress * .24).toFixed(4));
+    header.style.setProperty('--hero-title-y', (-progress * 22).toFixed(2) + 'px');
+    header.style.setProperty('--hero-status-y', (-progress * 14).toFixed(2) + 'px');
+    header.style.setProperty('--hero-title-opacity', (1 - progress * .55).toFixed(4));
+    if (Math.abs(target - current) > .0005 && !document.hidden) frame = requestAnimationFrame(paint);
+  }
+  function update() {
+    const rect = header.getBoundingClientRect();
+    target = Math.max(0, Math.min(1, -rect.top / Math.max(1, rect.height)));
+    if (reduced.matches) current = target;
+    if (!frame) frame = requestAnimationFrame(paint);
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  document.addEventListener('visibilitychange', update);
+  reduced.addEventListener('change', update);
+  update();
+})();

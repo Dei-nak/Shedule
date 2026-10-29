@@ -18,9 +18,10 @@
 <div class="shell">
   <!-- HEADER -->
   <div class="header">
+    <div class="hero-beams" aria-hidden="true"><canvas id="hero-light"></canvas><span></span><span></span><span></span></div>
     <canvas id="hero-particles" aria-hidden="true"></canvas>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Перемкнути тему" aria-pressed="false">Ір</button>
-    <i class="fas fa-cog settings-trigger" id="btn-settings" aria-label="Налаштування"></i>
+    <button class="settings-trigger" id="btn-settings" type="button" aria-label="Налаштування"><i class="fas fa-cog" aria-hidden="true"></i></button>
     <h2>Розклад ІР-31</h2>
     <p class="status-line"><span class="live-dot"></span><span id="top-date">Оновлення…</span></p>
     <span id="stale-badge" class="stale-badge hidden">дані можуть бути застарілими</span>
@@ -43,7 +44,6 @@
   </div>
   <div class="sync-line"><span id="sync-status" role="status">Отримуємо розклад…</span></div>
 
-  <p id="source-notice" class="source-notice hidden" role="status"></p>
   <div id="main-list" class="container"></div>
   <section id="day-summary" class="day-summary hidden" aria-label="Статистика обраного дня"></section>
 </div><!-- /.shell -->
@@ -112,5 +112,6 @@
 <script src="personal.js"></script>
 <script src="app.js"></script>
 <script src="particles.js"></script>
+<script src="hero-light.js"></script>
 </body>
 </html>

@@ -299,3 +299,121 @@ html, body { color: #151515; }
 .t-start, .t-end { text-shadow: 0 1px 2px #000, 0 0 4px #000b; }
 @media (prefers-reduced-motion: reduce) { .card::after, .time-rail { animation: none !important; } }
 :root[data-theme="dark"] .header .live-dot { background: #ededed; }
+
+/* Neutral fallback for the live light-field renderer. */
+.header { background: #08090b; box-shadow: inset 0 -24px 42px #0006; }
+.hero-beams { position: absolute; inset: 0; overflow: hidden; z-index: -2; pointer-events: none; background: #08090b; }
+#hero-light { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-beams span { position: absolute; top: -55%; left: 61%; width: 12%; height: 205%; transform: rotate(-36deg); background: linear-gradient(90deg, transparent, #85858536 18%, #b0b0b076 65%, #e4e4e488 98%, transparent); mask-image: linear-gradient(180deg, transparent 3%, #000 31%, #000 65%, transparent 96%); opacity: .65; animation: heroLightDrift 19s ease-in-out infinite alternate; }
+.hero-beams span:nth-child(2) { left: 72%; width: 10%; top: -70%; opacity: .45; animation-duration: 25s; animation-direction: alternate-reverse; }
+.hero-beams span:nth-child(3) { left: 85%; width: 7%; top: -80%; opacity: .25; animation-duration: 29s; }
+.hero-beams[data-renderer="webgl"] span { display: none; }
+#hero-particles { opacity: .2; }
+@keyframes heroLightDrift { from { transform: translate3d(-10px, -8px, 0) rotate(-36deg); } to { transform: translate3d(20px, 18px, 0) rotate(-34deg); } }
+/* Practical lessons breathe softly rather than repeating another travelling gradient. */
+.card.type-practice::after { background: linear-gradient(90deg, #626262, #bcbcbc 48%, #747474); background-size: 100% 100%; animation: practiceBreath 6.4s ease-in-out infinite; }
+@keyframes practiceBreath { 0%, 100% { filter: brightness(.78); opacity: .8; } 32% { filter: brightness(1.32); opacity: 1; } 55% { filter: brightness(.95); opacity: .9; } 72% { filter: brightness(1.14); opacity: 1; } }
+/* A coherent charcoal surface system, with softer borders and no stacked grey slabs. */
+:root[data-theme="dark"] { --canvas: #101010; --surface: #181818; --surface-strong: #222; --surface-hover: #262626; --ink: #ededed; --ink-soft: #b7b7b7; --ink-muted: #929292; --line: #2d2d2d; --line-dark: #393939; }
+html[data-theme="dark"], :root[data-theme="dark"] body { background: #101010; color: #ededed; }
+:root[data-theme="dark"] .shell { background: radial-gradient(ellipse at 50% 38%, #1b1b1b 0%, #101010 75%); }
+:root[data-theme="dark"] .controls-card input, :root[data-theme="dark"] .controls-card select { background: #1c1c1c; color: #e8e8e8; border-color: #3a3a3a; box-shadow: 0 2px 0 #080808; }
+:root[data-theme="dark"] .tabs { border-color: #343434; }:root[data-theme="dark"] .tab { color: #aaa; }:root[data-theme="dark"] .tab.active { color: #f0f0f0; }
+:root[data-theme="dark"] .add-lesson { background: #1d1d1d; border-color: #454545; }:root[data-theme="dark"] .add-lesson:hover { background: #292929; }
+:root[data-theme="dark"] .day-block { border-top-color: #474747; }
+:root[data-theme="dark"] .lesson-row, :root[data-theme="dark"] .lesson-row:last-child { background: #151515; border-color: #303030;  }
+:root[data-theme="dark"] .lesson-row:hover {  }
+:root[data-theme="dark"] .lesson-content { background: #151515; }
+:root[data-theme="dark"] .card, :root[data-theme="dark"] .card:hover { background: linear-gradient(155deg, #242424, #1c1c1c 75%); border: 1px solid #393939;  }
+:root[data-theme="dark"] .card:hover { border-color: #535353; }
+:root[data-theme="dark"] .card .title { color: #ededed; }:root[data-theme="dark"] .prof, :root[data-theme="dark"] .room { color: #b8b8b8; }
+:root[data-theme="dark"] .type-chip, :root[data-theme="dark"] .card .type-chip { background: #2c2c2c; border-color: #454545; color: #dedede; box-shadow: none; }
+:root[data-theme="dark"] .join-btn { background: #303030; color: #f1f1f1; box-shadow: 0 1px 0 #ffffff0c inset; }:root[data-theme="dark"] .join-btn.is-unavailable { background: #262626; color: #888; box-shadow: none; }
+:root[data-theme="dark"] .time-rail { border-right: 1px solid #303030; background: linear-gradient(180deg, #0d0d0d 0%, #343434 32%, #747474 58%, #161616 100%); background-size: 100% 260%; }
+:root[data-theme="dark"] .t-start { color: #f2f2f2; }:root[data-theme="dark"] .t-end { color: #d3d3d3; }
+:root[data-theme="dark"] .lesson-row.is-now { border-color: #727272; box-shadow: 0 0 0 1px #ffffff06; }:root[data-theme="dark"] .lesson-row.is-now .lesson-content { background: #1b1b1b; }:root[data-theme="dark"] .lesson-row.is-now .card { border-color: #686868; box-shadow: 0 1px 0 #ffffff0a inset; }
+:root[data-theme="dark"] .now-badge { background: #303030; color: #eee; letter-spacing: .04em; }
+:root[data-theme="dark"] .day-summary { border-color: #343434; color: #b8b8b8; }:root[data-theme="dark"] .summary-ticket { background: #1b1b1b; border-color: #3b3b3b; }:root[data-theme="dark"] .summary-ticket.now, :root[data-theme="dark"] .summary-ticket:hover { background: #303030; border-color: #666; }:root[data-theme="dark"] .summary-ticket::after { background: #141414; border-color: #3b3b3b; }
+:root[data-theme="dark"] .no-lessons { border-color: #353535; background-color: #191919; }
+:root[data-theme="dark"] .lesson-dialog { background: #191919; border-color: #444; }:root[data-theme="dark"] .lesson-dialog input, :root[data-theme="dark"] .lesson-dialog select { background: #252525; border-color: #484848; }
+:root[data-theme="dark"] .settings-screen { background: #141414; }:root[data-theme="dark"] .settings-group { background: #222; }
+@media (max-width: 560px) { .hero-beams span { left: 44%; width: 24%; }.hero-beams span:nth-child(2) { left: 68%; width: 20%; }.hero-beams span:nth-child(3) { left: 92%; width: 14%; }:root[data-theme="dark"] .lesson-content { padding: 11px; }:root[data-theme="dark"] .card { padding: 18px 17px 17px 22px; } }
+@media (prefers-reduced-motion: reduce) { .hero-beams span, .card::after { animation: none !important; } }
+
+
+/* Dark counterpart: exact original light layout, stop positions and dot scale. */
+:root[data-theme="dark"] .no-lessons { background-color: #1c1c1c; background-image: linear-gradient(135deg, rgba(43,43,43,.94) 0%, rgba(29,29,29,.68) 54%, rgba(37,37,37,.86) 100%), radial-gradient(rgba(255,255,255,.25) 1.35px, transparent 1.6px); background-size: auto, 17px 17px; box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+/* Repeating tiles meet at identical dark stops: no restart or reversal. */
+.time-rail { --rail-dark: #090909; --rail-middle: #505050; --rail-light: #f4f4f4; background-image: repeating-linear-gradient(180deg, var(--rail-dark) 0px, var(--rail-dark) 16px, var(--rail-middle) 96px, var(--rail-light) 192px, var(--rail-middle) 288px, var(--rail-dark) 368px, var(--rail-dark) 384px); background-size: 100% 384px; background-repeat: repeat-y; animation: timeRailEndless 13s linear infinite; }
+:root[data-theme="dark"] .time-rail { --rail-dark: #0c0c0c; --rail-middle: #3f3f3f; --rail-light: #929292; background-image: repeating-linear-gradient(180deg, var(--rail-dark) 0px, var(--rail-dark) 16px, var(--rail-middle) 96px, var(--rail-light) 192px, var(--rail-middle) 288px, var(--rail-dark) 368px, var(--rail-dark) 384px); background-size: 100% 384px; background-repeat: repeat-y; animation: timeRailEndless 13s linear infinite; }
+@keyframes timeRailEndless { from { background-position: 0 0; } to { background-position: 0 384px; } }
+/* Colour and light only. Existing card geometry remains shared with light mode. */
+:root[data-theme="dark"] .shell { background: radial-gradient(ellipse 80% 55% at 50% 35%, #222 0%, #141414 58%, #0d0d0d 100%); }
+:root[data-theme="dark"] .lesson-row, :root[data-theme="dark"] .lesson-row:last-child { background: #141414; border-color: #3c3c3c; }
+:root[data-theme="dark"] .lesson-content { background: linear-gradient(125deg, #1c1c1c, #161616 70%); }
+:root[data-theme="dark"] .card, :root[data-theme="dark"] .card:hover { background: linear-gradient(140deg, #323232 0%, #262626 38%, #1d1d1d 72%, #242424 100%); border-color: #484848; box-shadow: inset 0 1px 0 #ffffff0d, 0 7px 0 #101010, 0 14px 22px #0006; }
+:root[data-theme="dark"] .card .title { color: #f0f0f0; }:root[data-theme="dark"] .prof, :root[data-theme="dark"] .room { color: #c1c1c1; }
+:root[data-theme="dark"] .type-chip, :root[data-theme="dark"] .card .type-chip { background: linear-gradient(160deg, #3a3a3a, #2a2a2a); border-color: #535353; color: #ebebeb; box-shadow: inset 0 1px 0 #ffffff08; }
+:root[data-theme="dark"] .join-btn { background: linear-gradient(145deg, #424242, #252525); box-shadow: inset 0 1px 0 #ffffff14, 0 3px 0 #141414; }
+:root[data-theme="dark"] .join-btn.is-unavailable { background: #282828; color: #959595; }
+:root[data-theme="dark"] .lesson-row.is-now .card { background: linear-gradient(140deg, #383838, #252525 65%, #2a2a2a); border-color: #787878; box-shadow: inset 0 1px 0 #ffffff12, 0 7px 0 #141414; }
+/* Brighter particles sit physically behind translucent light surfaces. */
+.hero-beams { z-index: -1; background: transparent; transform: translate3d(0,var(--hero-light-y,0px),0) scale(var(--hero-light-scale,1)); opacity: var(--hero-light-opacity,1); transform-origin: 65% 50%; }
+#hero-particles { z-index: -2; opacity: .48; }
+.header h2 { transform: translate3d(0,var(--hero-title-y,0px),0); opacity: var(--hero-title-opacity,1); }
+.header .status-line { transform: translate3d(0,var(--hero-status-y,0px),0); opacity: var(--hero-title-opacity,1); }
+@media (prefers-reduced-motion: reduce) { .hero-beams span, .card::after, .time-rail { animation: none !important; } }
+
+/* Exit and return apply to the whole hero, including its backdrop and controls. */
+.header { opacity: var(--hero-visibility,1); filter: blur(var(--hero-blur,0px)); }
+/* Low-contrast dark surfaces; all previous card dimensions and radii are retained. */
+:root[data-theme="dark"] .card, :root[data-theme="dark"] .card:hover { background: linear-gradient(140deg, #242424 0%, #1e1e1e 45%, #191919 80%, #1d1d1d 100%); border-color: #343434; box-shadow: inset 0 1px 0 #ffffff06, 0 7px 0 #111, 0 14px 22px #0003; }
+:root[data-theme="dark"] .lesson-row, :root[data-theme="dark"] .lesson-row:last-child { border-color: #303030; }
+:root[data-theme="dark"] .type-chip, :root[data-theme="dark"] .card .type-chip { background: linear-gradient(160deg, #2d2d2d, #242424); border-color: #3e3e3e; }
+:root[data-theme="dark"] .lesson-row.is-now .card { background: linear-gradient(140deg, #292929, #1d1d1d 75%); border-color: #515151; box-shadow: inset 0 1px 0 #ffffff09, 0 7px 0 #121212; }
+/* Small details respond to interaction instead of spinning continuously. */
+.settings-trigger { transition: transform .55s cubic-bezier(.2,.7,.2,1), color .2s, background .2s; }
+.settings-trigger:hover, .settings-trigger:focus-visible { transform: rotate(55deg) scale(1.07); }
+.settings-trigger:active { transform: rotate(90deg) scale(.94); }
+.add-lesson i { transition: transform .3s ease; }.add-lesson:hover i { transform: rotate(90deg); }
+.join-btn i { transition: transform .28s ease; }.join-btn:not(.is-unavailable):hover i { transform: scale(1.12) rotate(-6deg); }
+.edit-personal i { transition: transform .25s ease; }.edit-personal:hover i { transform: rotate(-12deg); }
+.summary-ticket .ticket-pin { transition: transform .3s ease, box-shadow .3s ease; }.summary-ticket:hover .ticket-pin { transform: scale(1.4); box-shadow: 0 0 0 3px #8882; }
+.type-chip i { transition: transform .3s ease; }.card:hover .type-chip i { transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .header { filter: none; }.settings-trigger:hover, .settings-trigger:focus-visible, .settings-trigger:active, .add-lesson:hover i, .join-btn:hover i, .edit-personal:hover i, .summary-ticket:hover .ticket-pin, .card:hover .type-chip i { transform: none; } }
+
+/* Compact mobile schedule. Desktop geometry is intentionally untouched. */
+@media (max-width: 680px) {
+  .container { width: 100%; margin-inline: auto; padding: 18px 12px 16px; }
+  .tabs, .sync-line, .day-summary { width: calc(100% - 24px); }
+  .lesson-row { grid-template-columns: 64px minmax(0,1fr); min-height: 0; margin-bottom: 10px; gap: 0; padding: 0; }
+  .time-rail { width: auto; min-height: 100%; padding: 17px 8px; }
+  .time-text { text-align: center; }.t-start { left: 0; font-size: 18px; line-height: 1.15; }.t-end { margin-top: 5px; font-size: 12px; }
+  .lesson-content, :root[data-theme="dark"] .lesson-content { padding: 7px; gap: 6px; }
+  .sub-column { flex: 1 1 100%; min-width: 0; gap: 3px; }
+  .card, :root[data-theme="dark"] .card { min-height: 0; height: auto; padding: 13px 12px 13px 17px; }
+  .card-top { margin-bottom: 10px; gap: 7px; align-items: flex-start; }
+  .card-top > div:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+  .card-actions { flex: 0 0 auto; gap: 5px; }
+  .type-chip { min-height: 28px; padding: 0 9px; gap: 6px; font-size: 12px; white-space: nowrap; }.type-chip i { font-size: 10px; }
+  .join-btn { width: 36px; height: 36px; flex-basis: 36px; }
+  .delivery-indicator { margin-left: 0; min-height: 24px; padding: 0 7px; font-size: 10px; }
+  .title, .card .title { margin-bottom: 8px; font-size: 17px; line-height: 1.25; letter-spacing: 0; }
+  .prof, .room { font-size: 12px; line-height: 1.4; gap: 5px; }.prof { margin-bottom: 0; }.prof i, .room i { width: 12px; font-size: 10px; flex-shrink: 0; }
+  .group-tag { margin-left: 1px; padding: 0 0 2px; font-size: 10px; }
+  .now-badge { padding: 3px 7px; font-size: 10px; line-height: 1.2; }
+  .day-label { margin-top: 22px; margin-bottom: 12px; font-size: 21px; gap: 10px; }
+  .day-summary { margin-top: 4px; padding-top: 14px; margin-bottom: 32px; }
+  .summary-tickets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; padding: 12px 0 14px; }
+  .summary-ticket { min-width: 0; padding: 9px 7px; gap: 4px; font-size: 10px; }.summary-ticket i { font-size: 8px; }.ticket-pin { width: 3px; height: 3px; flex-shrink: 0; }
+  .summary-bottom { gap: 12px 18px; }
+  .personal-card .card-top { flex-wrap: nowrap; }
+}
+@media (max-width: 359px) {
+  .lesson-row { grid-template-columns: 58px minmax(0,1fr); }.time-rail { padding-inline: 5px; }.t-start { font-size: 16px; }
+  .title, .card .title { font-size: 16px; }.type-chip { padding-inline: 7px; font-size: 11px; }
+  .card, :root[data-theme="dark"] .card { padding-right: 10px; }
+}
+@media (max-width: 680px) and (hover: none) {
+  .lesson-row:hover, .card:hover, :root[data-theme="dark"] .lesson-row:hover, :root[data-theme="dark"] .card:hover { transform: none; }
+}
